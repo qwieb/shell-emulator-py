@@ -1,9 +1,11 @@
-"""Эмулятор командной оболочки ОС. Этап 1: REPL.
+"""Эмулятор командной оболочки ОС. Этап 2: конфигурация.
 
-Реализует минимальный прототип: приглашение на основе данных ОС,
-простой парсер, команды-заглушки ls и cd, команда exit.
+Добавлены параметры командной строки (путь к VFS, путь к стартовому
+скрипту), поддержка стартового скрипта с комментариями и отладочный
+вывод всех параметров при запуске.
 """
 
+import argparse
 import getpass
 import os
 import socket
@@ -28,14 +30,7 @@ def build_prompt() -> str:
 
 
 def parse_command(line: str):
-    """Разобрать строку ввода на команду и аргументы.
-
-    Args:
-        line: Строка, введённая пользователем.
-
-    Returns:
-        Кортеж (command, args). Если строка пустая — (None, []).
-    """
+    """Разобрать строку ввода на команду и аргументы."""
     parts = line.strip().split()
     if not parts:
         return None, []
@@ -43,12 +38,12 @@ def parse_command(line: str):
 
 
 def cmd_ls(args):
-    """Заглушка команды ls: выводит своё имя и аргументы."""
+    """Заглушка команды ls."""
     print(f"ls: args={args}")
 
 
 def cmd_cd(args):
-    """Заглушка команды cd: выводит своё имя и аргументы."""
+    """Заглушка команды cd."""
     print(f"cd: args={args}")
 
 
@@ -66,25 +61,86 @@ COMMANDS = {
 
 
 def execute(command: str, args):
-    """Выполнить команду с обработкой ошибок.
-
-    Args:
-        command: Имя команды.
-        args: Список аргументов.
-    """
+    """Выполнить команду с обработкой ошибок."""
     handler = COMMANDS.get(command)
     if handler is None:
         print(f"{command}: command not found")
         return
     try:
         handler(args)
+    except SystemExit:
+        raise
     except Exception as exc:  # noqa: BLE001
         print(f"{command}: error: {exc}")
 
 
+def parse_args(argv=None):
+    """Разобрать аргументы командной строки эмулятора.
+
+    Args:
+        argv: Список аргументов (по умолчанию — sys.argv[1:]).
+
+    Returns:
+        Объект с полями vfs и script.
+    """
+    parser = argparse.ArgumentParser(
+        prog="shell-emulator",
+        description="Эмулятор командной оболочки ОС (этап 2).",
+    )
+    parser.add_argument(
+        "--vfs",
+        default=None,
+        help="Путь к физическому расположению VFS.",
+    )
+    parser.add_argument(
+        "--script",
+        default=None,
+        help="Путь к стартовому скрипту для выполнения команд.",
+    )
+    return parser.parse_args(argv)
+
+
+def dump_config(args):
+    """Вывести отладочную информацию о параметрах запуска."""
+    print("=== Shell emulator configuration ===")
+    print(f"vfs    = {args.vfs!r}")
+    print(f"script = {args.script!r}")
+    print("====================================")
+
+
+def run_script(path: str):
+    """Выполнить стартовый скрипт с поддержкой комментариев.
+
+    Каждая строка скрипта интерпретируется как команда эмулятора.
+    Строки, начинающиеся с '#', игнорируются. Пустые строки также
+    пропускаются. На экран выводится как ввод, так и вывод, имитируя
+    диалог с пользователем.
+
+    Args:
+        path: Путь к файлу скрипта.
+    """
+    with open(path, encoding="utf-8") as fh:
+        for raw_line in fh:
+            line = raw_line.rstrip("\n")
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+
+            # Эхо ввода — имитация диалога с пользователем.
+            print(f"{build_prompt()}{stripped}")
+
+            command, args = parse_command(stripped)
+            if command is None:
+                continue
+
+            try:
+                execute(command, args)
+            except SystemExit:
+                return
+
+
 def repl():
-    """Основной цикл REPL: чтение — разбор — выполнение."""
-    print("Shell emulator (stage 1). Type 'exit' to quit.")
+    """Основной цикл REPL."""
     while True:
         try:
             line = input(build_prompt())
@@ -97,5 +153,27 @@ def repl():
         execute(command, args)
 
 
-if __name__ == "__main__":
+def main(argv=None) -> int:
+    """Точка входа эмулятора."""
+    args = parse_args(argv)
+    dump_config(args)
+
+    if args.script:
+        if not os.path.isfile(args.script):
+            print(f"shell-emulator: script not found: {args.script}",
+                  file=sys.stderr)
+            return 1
+        try:
+            run_script(args.script)
+        except OSError as exc:
+            print(f"shell-emulator: script error: {exc}",
+                  file=sys.stderr)
+            return 1
+
+    print("Shell emulator (stage 2). Type 'exit' to quit.")
     repl()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
