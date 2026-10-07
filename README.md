@@ -39,3 +39,19 @@
 
 ```bat
 scripts\run_with_all_params.bat
+
+### Windows
+
+Запуск через `run.bat`:
+
+    run.bat
+
+Со стартовым скриптом:
+
+    run.bat --script scripts\startup.cmds
+
+### Linux / macOS
+
+Запуск через `run.sh`:
+
+    ./run.sh
