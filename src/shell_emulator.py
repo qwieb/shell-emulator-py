@@ -70,7 +70,7 @@ def execute(command: str, args):
         handler(args)
     except SystemExit:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  
         print(f"{command}: error: {exc}")
 
 
@@ -126,7 +126,6 @@ def run_script(path: str):
             if not stripped or stripped.startswith("#"):
                 continue
 
-            # Эхо ввода — имитация диалога с пользователем.
             print(f"{build_prompt()}{stripped}")
 
             command, args = parse_command(stripped)

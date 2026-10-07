@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from shell_emulator import parse_command  # noqa: E402
+from shell_emulator import parse_command  
 
 
 class TestParseCommand(unittest.TestCase):
